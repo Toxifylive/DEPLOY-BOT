@@ -17,18 +17,22 @@ app.post("/deploy", async (req, res) => {
 
     const octokit = new Octokit({ auth: githubToken });
 
+    // Get authenticated username
+    const { data: userData } = await octokit.users.getAuthenticated();
+    const username = userData.login;
+
     // 1. Create repo
     await octokit.repos.createForAuthenticatedUser({
       name: repoName,
       private: false,
     });
 
-    // 2. Convert html to base64
+    // 2. Convert HTML to base64
     const base64 = Buffer.from(htmlCode).toString("base64");
 
     // 3. Upload index.html
     await octokit.repos.createOrUpdateFileContents({
-      owner: (await octokit.users.getAuthenticated()).data.login,
+      owner: username,
       repo: repoName,
       path: "index.html",
       message: "Add index.html",
@@ -36,15 +40,17 @@ app.post("/deploy", async (req, res) => {
       branch: "main",
     });
 
-    // 4. Enable GitHub Pages
-    await octokit.repos.enablePagesSite({
-      owner: (await octokit.users.getAuthenticated()).data.login,
+    // 4. Enable GitHub Pages (correct way)
+    await octokit.request('POST /repos/{owner}/{repo}/pages', {
+      owner: username,
       repo: repoName,
-      source: { branch: "main", path: "/" },
+      source: {
+        branch: 'main',
+        path: '/',
+      },
     });
 
-    // 5. Send back URL
-    const username = (await octokit.users.getAuthenticated()).data.login;
+    // 5. Return GitHub Pages URL
     const siteURL = `https://${username}.github.io/${repoName}/`;
     res.json({ url: siteURL });
 
