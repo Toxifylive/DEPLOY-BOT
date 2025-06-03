@@ -7,33 +7,28 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// ✅ Your GitHub Details
-const GITHUB_USERNAME = "Toxifylive";
-const GITHUB_TOKEN = "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"; // ⚠️ For private testing only
-
-// Initialize Octokit
-const octokit = new Octokit({ auth: GITHUB_TOKEN });
-
 app.post("/deploy", async (req, res) => {
   try {
-    const { repoName, htmlCode } = req.body;
+    const { repoName, htmlCode, githubToken } = req.body;
 
-    if (!repoName || !htmlCode) {
-      return res.status(400).json({ error: "repoName and htmlCode are required" });
+    if (!repoName || !htmlCode || !githubToken) {
+      return res.status(400).json({ error: "repoName, htmlCode, and githubToken are required" });
     }
 
-    // 1. Create GitHub repo
+    const octokit = new Octokit({ auth: githubToken });
+
+    // 1. Create repo
     await octokit.repos.createForAuthenticatedUser({
       name: repoName,
       private: false,
     });
 
-    // 2. Convert HTML to base64
+    // 2. Convert html to base64
     const base64 = Buffer.from(htmlCode).toString("base64");
 
-    // 3. Upload index.html to repo
+    // 3. Upload index.html
     await octokit.repos.createOrUpdateFileContents({
-      owner: GITHUB_USERNAME,
+      owner: (await octokit.users.getAuthenticated()).data.login,
       repo: repoName,
       path: "index.html",
       message: "Add index.html",
@@ -43,17 +38,18 @@ app.post("/deploy", async (req, res) => {
 
     // 4. Enable GitHub Pages
     await octokit.repos.enablePagesSite({
-      owner: GITHUB_USERNAME,
+      owner: (await octokit.users.getAuthenticated()).data.login,
       repo: repoName,
       source: { branch: "main", path: "/" },
     });
 
-    // 5. Send success response with URL
-    const siteURL = `https://${GITHUB_USERNAME}.github.io/${repoName}/`;
+    // 5. Send back URL
+    const username = (await octokit.users.getAuthenticated()).data.login;
+    const siteURL = `https://${username}.github.io/${repoName}/`;
     res.json({ url: siteURL });
 
   } catch (error) {
-    console.error("Error deploying:", error.message);
+    console.error("Deploy error:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
