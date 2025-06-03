@@ -9,7 +9,7 @@ app.use(bodyParser.json());
 
 // ✅ Your GitHub Details
 const GITHUB_USERNAME = "Toxifylive";
-const GITHUB_TOKEN = "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"; // ⚠️ For private testing only
+const GITHUB_TOKEN = "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"; // ⚠️ For private testing only
 
 // Initialize Octokit
 const octokit = new Octokit({ auth: GITHUB_TOKEN });
